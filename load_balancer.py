@@ -1,19 +1,16 @@
 import json
-
 from kafka import KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
-from flask import Flask, jsonify, request
+from flask import Flask, request
 import config
 from config import APIType, Currency, ERROR_CODES
-from marshmallow import Schema, fields
 
-# TODO: add robin round mechanism
+# robin round mechanism
+# will be sent as kafka 'value' to specify which server should work
 read_only_server = '5001'
 general_server = '5002'
 bank_servers_port = [read_only_server, general_server]
-current_server = 0
-
-# add tag in kafka value to specify which machine should work
+current_server = 0  # 0 to (len(bank_servers_port) - 1)
 
 def create_app(producer: KafkaProducer):
     app = Flask(__name__)
@@ -54,7 +51,6 @@ def create_app(producer: KafkaProducer):
 
     # transaction related operations
 
-    # TODO: create account
     @app.route('/accounts', methods=['POST'])
     def create_account():
         # format json body as bytes
@@ -114,7 +110,7 @@ def create_app(producer: KafkaProducer):
             key = APIType.ERROR.value
             error_code = ERROR_CODES['100'].encode('utf-8')
 
-        if int(data['amount']) <= 0:
+        if float(data['amount']) <= 0:
             key = APIType.ERROR.value
             error_code = ERROR_CODES['101'].encode('utf-8')
 
@@ -133,7 +129,7 @@ def create_app(producer: KafkaProducer):
         data['account_id'] = account_id
         data_str = json.dumps(data)
 
-        key = APIType.ADD_FUND.value
+        key = APIType.WITHDRAW_FUND.value
 
         # server selection thru robin round
         global current_server
@@ -146,7 +142,7 @@ def create_app(producer: KafkaProducer):
             key = APIType.ERROR.value
             error_code = ERROR_CODES['100'].encode('utf-8')
 
-        if int(data['amount']) <= 0:
+        if float(data['amount']) <= 0:
             key = APIType.ERROR.value
             error_code = ERROR_CODES['101'].encode('utf-8')
 
@@ -163,17 +159,26 @@ def create_app(producer: KafkaProducer):
 
 
 if __name__ == "__main__":
+    # setup kafka producer
     producer = KafkaProducer(bootstrap_servers=['localhost:9092'])
 
-    # create topics
+    # list out current topics
     admin_client = KafkaAdminClient(bootstrap_servers="localhost:9092")
     current_topics = admin_client.list_topics()
+    # print(current_topics)
 
-    # add topic if needed
-    topic_list = [NewTopic(name=config.read_topic, num_partitions=1, replication_factor=1),
-                  NewTopic(name=config.transaction_topic, num_partitions=1, replication_factor=1)]
+    # create kafka topics if needed
+    required_topics = [config.read_topic, config.transaction_topic]
+    topic_list = []
+    for required_topic in required_topics:
+        if required_topic not in current_topics:
+            topic_list.append(NewTopic(name=required_topic, num_partitions=1, replication_factor=1))
+    # print(topic_list)
 
-    # TODO: check if current topics contains topics in topic_list
+    if topic_list:
+        admin_client.create_topics(topic_list)
+    else:
+        print('all required topics exist')
 
     # run load balancer
     app = create_app(producer)

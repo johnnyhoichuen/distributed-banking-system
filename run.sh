@@ -6,6 +6,8 @@ curl localhost:5000/accounts/642aa567d08ee9ba0d8b8b82
 # retrieve the transaction history for the account with the specified accountId.
 curl localhost:5000/accounts/642aa567d08ee9ba0d8b8b82/transactions
 
+
+
 # create a new bank account
 curl -X POST -H "Content-Type: application/json" -d '{
     "currency": "USDT",
@@ -24,14 +26,14 @@ curl -X POST -H "Content-Type: application/json" -d '{
 
 # add funds to the account with the specified accountId.
 curl -X POST -H "Content-Type: application/json" -d '{
-    "amount": 10,
-    "currency": "USDT"
+    "amount": 0.1,
+    "currency": "BTC"
 }' http://localhost:5000/accounts/642aa567d08ee9ba0d8b8b82/credits
 
 # withdraw funds from the account with the specified accountId.
 curl -X POST -H "Content-Type: application/json" -d '{
-    "amount": 10,
-    "currency": "USDT"
+    "amount": 0.1,
+    "currency": "BTC"
 }' http://localhost:5000/accounts/642aa567d08ee9ba0d8b8b82/debits
 
 
