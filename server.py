@@ -58,7 +58,31 @@ if __name__ == "__main__":
 			# convert message.headers ('data') into json
 			header_json = json.loads(message.headers[0][1].decode('utf-8'))
 
-			print(header_json)
+			# get account holder email
+			user_email = header_json['account_holder']['email']
+			user = db.accountHolders.find_one({'email': user_email})
+
+			account_holder = header_json['account_holder']
+			account_holder["_id"] = ObjectId()
+			# header_json['account_holder'] = account_holder # update header
+			# print(header_json)
+
+			# create account holder if not exist
+			if user is None:
+				print('user does not exist, creating account holder')
+				db.accountHolders.insert_one(account_holder)
+			# else:
+			# 	print('user exists, continue')
+
+			# create account
+			db.accounts.insert_one(
+				{
+					'_id': ObjectId(),
+					'holder': account_holder["_id"],
+					'currency': header_json['currency'],
+					'balance': 0
+				}
+			)
 
 		elif message.key == APIType.ADD_FUND.value or message.key == APIType.WITHDRAW_FUND.value:
 			str_data = message.headers[0][1].decode('utf-8')
@@ -84,7 +108,7 @@ if __name__ == "__main__":
 					# add funds to account
 					db.accounts.update_one(
 						{'_id': account_id},
-						{'$inc': {'amount': float(obj['amount'])}}
+						{'$inc': {'balance': float(obj['amount'])}}
 					)
 				elif message.key == APIType.WITHDRAW_FUND.value:
 					# construct transaction record
@@ -98,7 +122,7 @@ if __name__ == "__main__":
 					# withdrawal
 					db.accounts.update_one(
 						{'_id': account_id},
-						{'$inc': {'amount': -float(obj['amount'])}}
+						{'$inc': {'balance': -float(obj['amount'])}}
 					)
 
 				# update transaction record to transactions history of the account
@@ -129,4 +153,8 @@ if __name__ == "__main__":
 
 		if message.key == APIType.ERROR.value:
 			print('errors occur!!')
-			print(f'Send this error to client: {message.value}')
+			str_data = message.headers[1][1].decode('utf-8')
+			print(message.headers[1][1].decode('utf-8'))
+
+			# obj = json.loads(str_data)
+			print(f'Send this error to client: {str_data}')

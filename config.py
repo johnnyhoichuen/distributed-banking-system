@@ -14,12 +14,11 @@ class APIType(Enum):
     WITHDRAW_FUND = b'withdraw_fund'
     ERROR = b'error'
 
+# examples of possible errors
 ERROR_CODES = {
     '100': "Invalid currency",
     '101': "Invalid amount",
-    # 300: "Resource not found",
-    # 400: "Invalid input",
-    # 500: "Internal server error"
+    '102': "Invalid user detail",
 }
 
 # support classes
@@ -35,6 +34,7 @@ class MetaEnum(EnumMeta):
 class BaseEnum(Enum, metaclass=MetaEnum):
     pass
 
+# a set of acceptable currencies
 class Currency(BaseEnum):
     BTC = "BTC"
     ETH = "ETH"

@@ -40,7 +40,7 @@ def create_app(producer: KafkaProducer):
     def get_transaction_history(account_id):
         account_id = str(account_id) if not isinstance(account_id, str) else account_id
 
-        key = APIType.TRAN_HISTORY.value
+        key = APIType.TRAN_HISTORY.value # assign API type
         headers = [
             ("account_id", str(account_id).encode('utf-8'))
         ]
@@ -57,25 +57,39 @@ def create_app(producer: KafkaProducer):
     # TODO: create account
     @app.route('/accounts', methods=['POST'])
     def create_account():
+        # format json body as bytes
         data = request.get_json()
-        print(data)
+        data_byte = json.dumps(data).encode('utf-8')
 
-        # TODO: check account holder info
-
-
-
-
-        data_byte = json.dumps(data).encode('utf-8') # format json body as bytes
-
-        key = APIType.NEW_ACC.value
-        headers = [
-            ('data', data_byte)
-        ]
+        key = APIType.NEW_ACC.value # assign API type
 
         # server selection thru robin round
         global current_server
         current_server = (current_server + 1) % len(bank_servers_port)
         value = bank_servers_port[current_server].encode('utf-8')
+
+        # check account holder info
+        # send errors to server
+        error_code = ''.encode('utf-8')
+        if data['currency'] not in Currency:
+            key = APIType.ERROR.value
+            error_code = ERROR_CODES['100'].encode('utf-8')
+            print(f'currency error: {error_code}')
+
+        # check user's name
+        user_name = str(data['account_holder']['name'])
+        user_name = user_name.replace(" ", "")
+        if not user_name.isalpha():
+            print(f'name: {user_name}, is alpha: {user_name.isalpha()}')
+
+            key = APIType.ERROR.value
+            error_code = ERROR_CODES['102'].encode('utf-8')
+            print(f'account holder name error: {error_code}')
+
+        headers = [
+            ('data', data_byte),
+            ('error', error_code)
+        ]
 
         producer.send(topic=config.transaction_topic, key=key, value=value, headers=headers)
 
